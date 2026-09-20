@@ -1,0 +1,82 @@
+==============================================================================
+Day 7 Lab -- Group Benchmark Demo
+==============================================================================
+Member       : Nguyen Thi Ha
+Strategy     : recursive
+chunk_size   : 500
+top_k        : 3
+
+Loaded 8 source documents from C:\Users\Admin\K4-L3B-DAY07-NguyenThiHa-2A202602536\data\ecommerce:
+  - shopee-mall-terms (category=seller-rules, audience=seller, 33528 chars)
+  - shopee-platform-charter (category=platform-regulation, audience=both, 36450 chars)
+  - shopee-prohibited-products (category=seller-rules, audience=seller, 12653 chars)
+  - shopee-return-refund-general (category=returns-policy, audience=buyer, 6029 chars)
+  - shopee-return-refund-policy (category=returns-policy, audience=buyer, 19410 chars)
+  - shopee-seller-listing-rules (category=seller-rules, audience=seller, 21303 chars)
+  - shopee-shipping-policy (category=shipping-policy, audience=both, 24406 chars)
+  - shopee-warranty-policy (category=warranty-policy, audience=buyer, 3132 chars)
+
+=== BASELINE: ChunkingStrategyComparator (all 8 docs concatenated) ===
+strategy         count   avg_length
+fixed_size         393        499.0
+by_sentences       388        401.1
+recursive          439        355.5
+
+Embedding backend: text-embedding-3-small (openai)
+Ingested 442 chunks from 8 documents (recursive).
+
+==============================================================================
+BENCHMARK QUERIES
+==============================================================================
+
+--- Q1: Người mua có thể gửi yêu cầu trả hàng/hoàn tiền trong vòng bao lâu kể từ khi đơn hàng giao thành công?
+    Gold answer : Trong vòng 15 ngày kể từ lúc đơn hàng cập nhật giao thành công; riêng thực phẩm tươi sống/đông lạnh chỉ 24 giờ.
+    Expected doc: shopee-return-refund-policy  |  top-1 hit: YES  |  top-3 hit: YES  |  378.7 ms
+      [1] score=0.7887 doc_id=shopee-return-refund-policy :: 3.2. Người Mua có thể gửi yêu cầu trả hàng/hoàn tiền trong vòng 15 (mười lăm) ngày kể từ lúc đơn hàn...
+      [2] score=0.6927 doc_id=shopee-return-refund-general :: ⚠️ Lưu ý:  Bạn vẫn có thể gửi yêu cầu Trả hàng/Hoàn tiền sau khi đã bấm nút ‘Đã nhận được hàng’ và v...
+      [3] score=0.6333 doc_id=shopee-return-refund-general :: # Quy định chung về trả hàng hoàn tiền  1. Điều kiện Trả hàng/Hoàn tiền của Shopee  1.1. Nguyên tắc ...
+    Agent answer: [DEMO LLM - not a real model] ...1.2. Thời gian tối đa để gửi yêu cầu trả hàng hoàn tiền cho Shopee  Thời gian để Shopee tiếp nhận yêu cầu Trả hàng/Hoàn tiền từ...
+
+--- Q2: Sản phẩm được bảo hành miễn phí khi đáp ứng những điều kiện nào?
+    Gold answer : Lỗi kỹ thuật do nhà sản xuất; còn hạn bảo hành; có hóa đơn điện tử hoặc mã đơn hàng; với hàng điện gia dụng thì tem/phiếu bảo hành còn nguyên vẹn.
+    Expected doc: shopee-warranty-policy  |  top-1 hit: YES  |  top-3 hit: YES  |  281.6 ms
+      [1] score=0.6648 doc_id=shopee-warranty-policy :: # Chính sách bảo hành sản phẩm  * Chỉ áp dụng cho ngành hàng được bán bởi các nhà phân phối/gian hàn...
+      [2] score=0.6426 doc_id=shopee-warranty-policy :: Đối với các sản phẩm điện gia dụng, phiếu / tem bảo hành (và tem niêm phong) của nhà sản xuất (tùy t...
+      [3] score=0.6147 doc_id=shopee-platform-charter :: Khi đáp ứng điều kiện bảo hành và khi có nhu cầu bảo hành sản phẩm, Người Mua liên hệ trực tiếp với ...
+    Agent answer: [DEMO LLM - not a real model] ...à sản xuất để nhận được hướng dẫn bảo hành cần thiết.  ### 5. Chính sách Trả hàng/Hoàn tiền  Vui lòng tham khảo Chính sách Trả ...
+
+--- Q3: Người bán vi phạm Chính sách cấm/hạn chế sản phẩm sẽ bị Shopee áp dụng những chế tài nào?
+    Gold answer : Xóa sản phẩm; giới hạn quyền tài khoản; đình chỉ/xóa tài khoản; cấn trừ số dư & phong tỏa quyền rút tiền; các chế tài pháp luật khác.
+    Metadata filter applied: {'audience': 'seller'}
+    Expected doc: shopee-prohibited-products  |  top-1 hit: YES  |  top-3 hit: YES  |  563.1 ms
+      [1] score=0.7549 doc_id=shopee-prohibited-products :: # Chính sách cấm hạn chế sản phẩm  1. ĐỐI TƯỢNG ÁP DỤNG  Chính sách này áp dụng đối với tất cả Người...
+      [2] score=0.7367 doc_id=shopee-seller-listing-rules :: Người Bán vi phạm một trong các quy định trên trong quá trình đăng bán sản phẩm, tùy theo mức độ vi ...
+      [3] score=0.7341 doc_id=shopee-prohibited-products :: Chính sách này áp dụng đối với việc đăng bán sản phẩm, hàng hóa, dịch vụ trên Sàn Shopee. Mỗi khi đă...
+    Agent answer: [DEMO LLM - not a real model] ...ông vi phạm các Điều Khoản Sử Dụng và Chính Sách Shopee. Vui lòng đọc kỹ các hướng dẫn dưới đây về Chính Sách Cấm/Hạn Chế Sản P...
+
+--- Q4: Đơn hàng có giá trị hàng hóa bao nhiêu thì Shopee không hỗ trợ vận chuyển?
+    Gold answer : Trên 50.000.000 VNĐ (giá khuyến mãi nếu có, không gồm mã giảm giá/xu/phí vận chuyển).
+    Expected doc: shopee-shipping-policy  |  top-1 hit: YES  |  top-3 hit: YES  |  294.7 ms
+      [1] score=0.7171 doc_id=shopee-shipping-policy ::   d.  Đơn hàng có giá trị hàng hóa lớn hơn 50.000.000VNĐ (Tổng giá trị hàng hóa với giá khuyến mãi n...
+      [2] score=0.6720 doc_id=shopee-shipping-policy ::    iv. Shopee có thể vẫn hỗ trợ nếu có yêu cầu từ Người Bán theo quyết định của riêng Shopee nhưng N...
+      [3] score=0.6674 doc_id=shopee-shipping-policy :: 1. Quy định về các loại hàng hóa không hỗ trợ vận chuyển trên Shopee  1.1. Các loại hàng hóa không h...
+    Agent answer: [DEMO LLM - not a real model] ...   b.    Các vật phẩm làm bằng vàng, bạc, đá quý hoặc các loại kim khí quý khác;     c.    Hóa chất tẩy rửa đậm đặc, dung dịch/...
+
+--- Q5: Người bán có phải chịu phí vận chuyển hoàn trả sản phẩm không, nếu đơn giao không thành công do lỗi của đơn vị vận chuyển?
+    Gold answer : Không. Điều 7.2: Người Bán không phải chịu phí vận chuyển hoàn trả khi đơn giao không thành công do lỗi của đơn vị vận chuyển (khác với Điều 7.1).
+    Expected doc: shopee-return-refund-policy  |  top-1 hit: no  |  top-3 hit: YES  |  296.0 ms
+      [1] score=0.6658 doc_id=shopee-shipping-policy :: Tuy nhiên, Người Bán phải gửi khiếu nại đến đơn vị vận chuyển chịu trách nhiệm vận chuyển đơn hàng v...
+      [2] score=0.6493 doc_id=shopee-shipping-policy ::    b.    Khiếu nại vận chuyển với đơn Giao không thành công (dành cho Người Bán):     i. Đơn được cậ...
+      [3] score=0.6322 doc_id=shopee-return-refund-policy :: Người Mua đã thanh toán bằng các phương thức thanh toán hợp lệ và trực tiếp trên Trang Shopee nhưng ...
+    Agent answer: [DEMO LLM - not a real model] ... hư hại trong quá trình vận chuyển;  Người Bán giao sai Sản Phẩm cho Người Mua (ví dụ: sai kích cỡ, sai màu sắc, v.v);  Câu hỏi...
+
+==============================================================================
+SUMMARY (paste this block into report/REPORT_NHOM.md for comparison)
+==============================================================================
+member          : Nguyen Thi Ha
+strategy        : recursive (chunk_size=500)
+embedding       : openai
+total_chunks    : 442
+top1_hit_rate   : 4/5
+top3_hit_rate   : 5/5
+avg_latency_ms  : 362.81
