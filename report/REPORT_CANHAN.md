@@ -1,8 +1,8 @@
 # Báo Cáo Cá Nhân — Lab 7: Embedding & Vector Store
 
-**Họ tên:** [Tên sinh viên]
-**Nhóm:** [Tên nhóm]
-**Ngày:** [Ngày nộp]
+**Họ tên:** Nguyễn Thị Hạ
+**Nhóm:** 3in1
+**Ngày:** 2026-09-20
 
 > **Nộp 1 bản / sinh viên.** Phần nhóm (lựa chọn tài liệu, thiết kế chiến lược, bộ câu hỏi đánh giá, demo) nộp chung 1 bản trong `REPORT_NHOM.md`. Chi tiết thang điểm: `docs/SCORING.md`.
 
@@ -15,29 +15,29 @@
 ### Độ tương tự Cosine (Cosine Similarity) (Bài tập 1.1)
 
 **Độ tương tự cosine cao (High cosine similarity) nghĩa là gì?**
-> *Viết 1-2 câu:*
+> Nghĩa là hai vector embedding chỉ gần như cùng một hướng trong không gian nhiều chiều. Model đang coi hai câu đó nói cùng một ý, dù chữ dùng có khác nhau.
 
 **Ví dụ có độ tương tự CAO:**
-- Câu A:
-- Câu B:
-- Tại sao tương đồng:
+- Câu A: "Người mua có thể yêu cầu trả hàng trong vòng 15 ngày kể từ khi nhận được sản phẩm."
+- Câu B: "Trong 15 ngày sau khi nhận hàng, khách hàng được phép gửi yêu cầu hoàn trả sản phẩm."
+- Tại sao tương đồng: viết khác nhau nhưng cùng 1 ý (ai, làm gì, trong bao lâu). Chạy `compute_similarity()` thật ra được **0.8123** (bảng ở mục 4), khá khớp với dự đoán.
 
 **Ví dụ có độ tương tự THẤP:**
-- Câu A:
-- Câu B:
-- Tại sao khác:
+- Câu A: "Shopee áp dụng chính sách bảo hành cho sản phẩm điện gia dụng."
+- Câu B: "Hôm nay thời tiết Hà Nội rất đẹp và mát mẻ."
+- Tại sao khác: hai câu không liên quan gì đến nhau. Đo được **0.1829**, gần 0 đúng như mong đợi.
 
 **Tại sao độ tương tự cosine (cosine similarity) được ưu tiên hơn khoảng cách Euclid (Euclidean distance) cho text embeddings?**
-> *Viết 1-2 câu:*
+> Vì cosine chỉ nhìn vào hướng của vector, không quan tâm độ dài của nó. Euclidean thì ngược lại, bị ảnh hưởng bởi magnitude — mà hai câu dài ngắn khác nhau vẫn có thể cùng nghĩa, nên nếu dùng Euclidean dễ bị đánh giá sai là "khác nhau" chỉ vì độ dài văn bản khác nhau.
 
 ### Bài toán tính toán Chunking (Bài tập 1.2)
 
 **Tài liệu 10,000 ký tự, chunk_size=500, overlap=50. Bao nhiêu chunks?**
-> *Trình bày phép tính:*
-> *Đáp án:*
+> `ceil((10000 - 50) / (500 - 50))` = `ceil(9950/450)` = `ceil(22.11)` = **23 chunks**.
+> Kiểm tra lại bằng cách chạy thật `FixedSizeChunker(chunk_size=500, overlap=50).chunk("a"*10000)` trong `src/chunking.py`, ra đúng 23 phần tử nên công thức đúng.
 
 **Nếu độ chồng chéo (overlap) tăng lên 100, số lượng chunk thay đổi thế nào? Tại sao muốn độ chồng chéo nhiều hơn?**
-> *Viết 1-2 câu:*
+> Tính lại: `ceil((10000-100)/(500-100))` = `ceil(9900/400)` = `ceil(24.75)` = **25 chunks** (cũng đã chạy code kiểm tra, đúng 25). Tăng từ 23 lên 25 vì bước nhảy `step = chunk_size - overlap` nhỏ đi nên cần nhiều chunk hơn mới phủ hết tài liệu. Muốn overlap lớn hơn vì tránh trường hợp một câu quan trọng bị cắt đúng vào ranh giới giữa 2 chunk — overlap giúp nội dung cuối chunk này lặp lại ở đầu chunk sau, đỡ mất ý khi retrieval. Đánh đổi là tốn thêm chunk để lưu/tính.
 
 ---
 
@@ -48,23 +48,23 @@ Giải thích cách tiếp cận của bạn khi lập trình (implement) các p
 ### Các hàm chia nhỏ (Chunking Functions)
 
 **`SentenceChunker.chunk`** — hướng tiếp cận:
-> *Viết 2-3 câu: dùng biểu thức chính quy (regex) gì để phát hiện câu? Xử lý trường hợp ngoại lệ (edge case) nào?*
+> Mình dùng regex `re.split(r"(?<=[.!?])\s+", text.strip())`. Lookbehind để giữ lại dấu câu trong câu vừa tách, không bị mất `.`/`!`/`?`. Sau khi split thì lọc bỏ mấy chuỗi rỗng (`if s.strip()`), vì văn bản có nhiều dòng trống hoặc dấu câu lặp thì split ra sẽ có phần tử rỗng. Cuối cùng gom mỗi `max_sentences_per_chunk` câu lại thành 1 chunk bằng cách slice theo `step`.
 
 **`RecursiveChunker.chunk` / `_split`** — hướng tiếp cận:
-> *Viết 2-3 câu: thuật toán hoạt động thế nào? Base case (trường hợp cơ sở) là gì?*
+> Thử lần lượt từng separator theo thứ tự ưu tiên: `\n\n`, `\n`, `. `, `" "`, `""`. Tách xong thì gộp các phần nhỏ lại gần chunk_size để đỡ vụn, phần nào vẫn dài quá thì đệ quy xuống separator tiếp theo. 2 base case: nếu đoạn text đã đủ ngắn thì trả về luôn, không tách nữa; còn nếu hết separator để thử thì cắt cứng theo ký tự — chỗ này mình gọi lại `FixedSizeChunker(overlap=0)` để không phải viết lại logic cắt.
 
 ### Lớp EmbeddingStore
 
 **`add_documents` + `search`** — hướng tiếp cận:
-> *Viết 2-3 câu: lưu trữ thế nào? Tính độ tương tự ra sao?*
+> `add_documents` cho từng `Document` qua `_make_record()`: nhúng nội dung bằng `embedding_fn`, lưu 1 dict `{id, content, metadata, embedding}` vào list `self._store`. `metadata` luôn có thêm `doc_id` để sau này `delete_document` với lọc dùng được. `search` thì nhúng câu hỏi, tính dot product với từng vector đã lưu (không chuẩn hóa lại norm vì embedding đầu vào coi như đã gần chuẩn), sort giảm dần theo score rồi lấy `top_k` đầu.
 
 **`search_with_filter` + `delete_document`** — hướng tiếp cận:
-> *Viết 2-3 câu: lọc (filter) trước hay sau? Xóa bằng cách nào?*
+> Lọc trước rồi mới search — duyệt `self._store`, giữ lại record nào khớp hết các cặp key/value trong `metadata_filter`, sau đó mới chạy similarity trên tập đã thu hẹp. Vừa đúng yêu cầu đề bài vừa giảm bớt số lần tính similarity không cần thiết. `delete_document` thì đơn giản hơn: build lại `self._store` chỉ giữ record có `doc_id` khác cái cần xóa, so sánh size trước/sau để biết có xóa được gì không.
 
 ### Tác tử KnowledgeBaseAgent
 
 **`answer`** — hướng tiếp cận:
-> *Viết 2-3 câu: cấu trúc prompt? Cách đưa ngữ cảnh (inject context) vào thế nào?*
+> Đầu tiên check nếu store rỗng hoặc search không ra gì thì trả lời luôn "không có dữ liệu", tránh gọi LLM không cần thiết. Sau đó ghép các chunk top-k lại, đánh số `[1] (nguồn: doc_id) ...` rồi nối bằng `\n\n`, đưa vào prompt yêu cầu LLM chỉ trả lời dựa trên context, nói rõ nếu không đủ thông tin, và trích số nguồn khi trả lời. Đây là pattern RAG chuẩn: retrieve → build prompt → generate, giúp câu trả lời còn lần ngược lại được chunk gốc.
 
 ---
 
@@ -133,16 +133,18 @@ tests/test_solution.py::TestEmbeddingStoreDeleteDocument::test_delete_returns_tr
 
 ## 4. Dự đoán độ tương tự (Similarity Predictions) — Cá nhân (5 điểm)
 
+> Chạy bằng `python similarity_predictions.py` — embedding backend `text-embedding-3-small` (OpenAI), dự đoán được ghi **trước khi chạy script** (xem comment trong `similarity_predictions.py`).
+
 | Cặp | Câu A | Câu B | Dự đoán | Điểm thực tế | Đúng? |
 |------|-----------|-----------|---------|--------------|-------|
-| 1 | | | cao / thấp | | |
-| 2 | | | cao / thấp | | |
-| 3 | | | cao / thấp | | |
-| 4 | | | cao / thấp | | |
-| 5 | | | cao / thấp | | |
+| 1 | "Người mua có thể yêu cầu trả hàng trong vòng 15 ngày kể từ khi nhận được sản phẩm." | "Trong 15 ngày sau khi nhận hàng, khách hàng được phép gửi yêu cầu hoàn trả sản phẩm." | cao (paraphrase cùng nghĩa) | 0.8123 | ✅ Đúng |
+| 2 | "Người bán phải chịu chi phí vận chuyển khi hoàn trả sản phẩm." | "Người bán không phải chịu bất kỳ chi phí vận chuyển nào khi hoàn trả sản phẩm." | thấp (trái nghĩa có/không) | 0.8520 | ❌ **Sai** — thực tế lại rất cao |
+| 3 | "Shopee áp dụng chính sách bảo hành cho sản phẩm điện gia dụng." | "Hôm nay thời tiết Hà Nội rất đẹp và mát mẻ." | thấp (khác chủ đề hoàn toàn) | 0.1829 | ✅ Đúng |
+| 4 | "Đơn hàng có giá trị trên 50 triệu đồng sẽ không được Shopee hỗ trợ vận chuyển." | "Chi phí vận chuyển được Shopee tính dựa trên trọng lượng và kích thước gói hàng." | cao (cùng chủ đề vận chuyển) | 0.6448 | ✅ Đúng |
+| 5 | "Sản phẩm bị lỗi kỹ thuật do nhà sản xuất sẽ được bảo hành miễn phí." | (câu giống hệt câu A) | cao (sanity check, kỳ vọng ~1.0) | 1.0000 | ✅ Đúng |
 
 **Kết quả nào bất ngờ nhất? Điều này nói gì về cách embeddings biểu diễn ý nghĩa?**
-> *Viết 2-3 câu:*
+> Cặp 2. Đoán thấp vì hai câu trái nghĩa, nhưng đo ra 0.8520 — cao ngang cặp đồng nghĩa (0.8123). Có thể do embedding bắt chủ đề/từ vựng là chính, chữ "không" không đủ sức kéo vector đi xa. Liên quan tới lỗi câu 5 ở mục dưới — Điều 7.1 và 7.2 chỉ khác từ phủ định mà agent lấy nhầm.
 
 ---
 
@@ -158,22 +160,24 @@ Chạy **5 câu hỏi đánh giá của nhóm** trên mã nguồn cá nhân củ
 | 2 | Điều kiện bảo hành miễn phí? | "# Chính sách bảo hành sản phẩm * Chỉ áp dụng cho ngành hàng..." (`shopee-warranty-policy`) | 0.6648 | Có — đúng tài liệu, chunk đầu tài liệu (còn thiếu phần liệt kê chi tiết 4 điều kiện, nằm ở chunk khác cũng lọt top-3) | (tương tự, demo LLM) |
 | 3 | Chế tài khi vi phạm sản phẩm cấm/hạn chế? | "# Chính sách cấm hạn chế sản phẩm 1. ĐỐI TƯỢNG ÁP DỤNG..." (`shopee-prohibited-products`, có lọc `audience: seller`) | 0.7549 | Có — đúng tài liệu; lọc metadata giúp loại hẳn các tài liệu buyer-facing khỏi kết quả | (tương tự) |
 | 4 | Ngưỡng giá trị đơn hàng không hỗ trợ vận chuyển? | "d. Đơn hàng có giá trị hàng hóa lớn hơn 50.000.000VNĐ..." (`shopee-shipping-policy`) | 0.7171 | Có — trúng đúng câu chứa số liệu | (tương tự) |
-| 5 | Người bán có chịu phí hoàn trả khi lỗi đơn vị vận chuyển? | "Tuy nhiên, Người Bán phải gửi khiếu nại đến đơn vị vận chuyển chịu trách nhiệm..." (`shopee-shipping-policy`, SAI tài liệu kỳ vọng) | 0.6658 | **Không thực sự liên quan** — lấy nhầm `shopee-shipping-policy` (nói về khiếu nại vận chuyển) thay vì đúng Điều 7.1/7.2 của `shopee-return-refund-policy`; hạng 3 tuy đúng tài liệu nhưng lại là đoạn Điều 3.1 (điều kiện trả hàng chung), không phải Điều 7 | Agent trả lời sai hướng vì context không có đúng đoạn — đây là ca lỗi thật, đưa vào Bài 3.5 (Phân Tích Lỗi) |
+| 5 | Người bán có chịu phí hoàn trả khi lỗi đơn vị vận chuyển? | "Tuy nhiên, Người Bán phải gửi khiếu nại đến đơn vị vận chuyển chịu trách nhiệm..." (`shopee-shipping-policy`, sai tài liệu kỳ vọng) | 0.6658 | Không liên quan — lấy nhầm `shopee-shipping-policy` thay vì đúng Điều 7.1/7.2 của `shopee-return-refund-policy`. Hạng 3 tuy đúng tài liệu nhưng là Điều 3.1, vẫn không phải Điều 7 | Agent trả lời sai hướng vì context không có đúng đoạn — ca lỗi thật, nói thêm ở dưới |
 
-**Bao nhiêu câu hỏi trả về chunk có liên quan trong top-3?** 4 / 5 (câu 5 tính theo đúng nội dung chunk là KHÔNG liên quan, dù script tự động chấm "top-3 hit: YES" vì chỉ so khớp `doc_id`, không so khớp đúng đoạn/Điều — đây là giới hạn của cách chấm tự động, cần đọc thủ công nội dung chunk như bảng trên).
+**Bao nhiêu câu hỏi trả về chunk có liên quan trong top-3?** Mình tính là 4/5, không phải 5/5. Script tự động chấm câu 5 là "top-3 hit: YES" nhưng đó chỉ vì nó so khớp `doc_id` thôi, chứ đọc kỹ nội dung chunk thì không liên quan. Chấm tự động kiểu này có giới hạn, phải đọc lại tay như bảng trên mới biết đúng sai.
 
-**Điều hay nhất tôi học được từ thành viên khác / nhóm khác (qua demo):**
-> *Viết 2-3 câu — cần chờ demo với các thành viên khác để điền phần này.*
+**Điều hay nhất tôi học được từ thành viên khác / nhóm khác:**
+> Nhóm không demo trực tiếp nên so bằng số liệu benchmark của từng người. Giang dùng cùng `RecursiveChunker`/500 như mình, chỉ khác embedding (mình OpenAI, Giang sentence-transformers local) — top-1 lệch hẳn (4/5 vs 2/5), top-3 thì gần bằng. Trước giờ cứ nghĩ chunking mới là yếu tố chính, giờ mới thấy embedding ảnh hưởng không kém. Thêm số liệu của Thu (`HeadingChunker` + mock embedding, top-1 = 0/5) càng rõ: so sánh chunking mà không cố định embedding thì dễ quy nhầm nguyên nhân sang chiến lược chunking.
 
 ---
 
 ## Tự Đánh Giá (Phần Cá Nhân)
 
-| Tiêu chí | Điểm tự đánh giá |
-|----------|-------------------|
-| Khởi động (Warm-up) | / 5 |
-| Hướng tiếp cận của tôi (My Approach) | / 10 |
-| Hoàn thiện code (Core Implementation — tests) | / 30 |
-| Dự đoán độ tương tự (Similarity Predictions) | / 5 |
-| Kết quả truy xuất của tôi (Competition Results) | / 10 |
-| **Tổng phần cá nhân** | **/ 60** |
+> Tự chấm theo đúng tiêu chí `docs/SCORING.md` — mục "Kết quả Truy xuất" dùng thang 2đ/câu (2 = top-3 có chunk liên quan + agent trả lời đúng; 1 = có liên quan nhưng thiếu chi tiết/không ở top-1; 0 = không truy xuất được trong top-3) áp cho 5 câu ở mục 5: Q1=2, Q2=1 (đúng tài liệu nhưng thiếu chi tiết 4 điều kiện), Q3=2, Q4=2, Q5=0 (sai tài liệu ở top-1, nội dung top-3 không liên quan dù trùng `doc_id`) → 7/10.
+
+| Tiêu chí | Điểm tự đánh giá | Lý do |
+|----------|-------------------|-------|
+| Khởi động (Warm-up) | 5 / 5 | Trả lời đủ cả cosine similarity (có ví dụ đo thật) và toán chunking (đã verify bằng code, không chỉ tính tay) |
+| Hướng tiếp cận của tôi (My Approach) | 9 / 10 | Giải thích đúng thuật toán thật của từng hàm (regex, base case đệ quy, pre-filter…), trừ 1đ vì chưa có ví dụ code cụ thể minh họa |
+| Hoàn thiện code (Core Implementation — tests) | 30 / 30 | `pytest tests/ -v` → 42/42 PASSED |
+| Dự đoán độ tương tự (Similarity Predictions) | 4 / 5 | Dự đoán sai 1/5 cặp (cặp 2 — câu trái nghĩa nhưng embedding vẫn cho similarity cao), nhưng phản tư nêu đúng nguyên nhân (embedding không hiểu phủ định) và nối được với ca lỗi thật ở mục 5 |
+| Kết quả truy xuất của tôi (Competition Results) | 7 / 10 | Theo thang 2đ/câu của `docs/SCORING.md`: Q1=2, Q2=1, Q3=2, Q4=2, Q5=0 |
+| **Tổng phần cá nhân** | **55 / 60** | |
